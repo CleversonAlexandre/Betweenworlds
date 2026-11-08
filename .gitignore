@@ -1,0 +1,47 @@
+# ==========================================================
+# Between Worlds — .gitignore (Unreal Engine 5.7 + Visual Studio)
+# ==========================================================
+
+# --- Pastas geradas pela Unreal (recriadas automaticamente) ---
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+
+# Mesmas pastas dentro de plugins do projeto
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+
+# --- Arquivos de solução/IDE (gerados por "Generate Visual Studio project files") ---
+*.sln
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.vcxproj*
+.vs/
+.vscode/
+.idea/
+*.user
+*.code-workspace
+
+# --- Compilação ---
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.dll
+*.exe
+*.app
+*.ipa
+
+# --- Builds empacotadas ---
+Packaged/
+Archive/
+
+# --- Diversos ---
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
