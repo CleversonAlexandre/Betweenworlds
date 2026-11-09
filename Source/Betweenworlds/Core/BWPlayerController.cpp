@@ -1,7 +1,8 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera)
 
 #include "Core/BWPlayerController.h"
 
+#include "Camera/BWCameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -69,6 +70,31 @@ void ABWPlayerController::SetupInputComponent()
 			TEXT("%s: MoveAction não configurada. Defina-a no BP_BWPlayerController."),
 			*GetNameSafe(this));
 	}
+
+	// Etapa 1.3: zoom da câmera.
+	if (ZoomWheelAction)
+	{
+		EnhancedInput->BindAction(ZoomWheelAction, ETriggerEvent::Triggered, this, &ThisClass::HandleZoomWheel);
+	}
+	else
+	{
+		UE_LOG(LogBWPlayerController, Warning,
+			TEXT("%s: ZoomWheelAction não configurada. Defina-a (IA_ZoomWheel) no BP_BWPlayerController."),
+			*GetNameSafe(this));
+	}
+
+	if (ZoomAxisAction)
+	{
+		// Triggered alimenta enquanto o stick está inclinado; Completed zera quando solta.
+		EnhancedInput->BindAction(ZoomAxisAction, ETriggerEvent::Triggered, this, &ThisClass::HandleZoomAxisChanged);
+		EnhancedInput->BindAction(ZoomAxisAction, ETriggerEvent::Completed, this, &ThisClass::HandleZoomAxisEnded);
+	}
+	else
+	{
+		UE_LOG(LogBWPlayerController, Warning,
+			TEXT("%s: ZoomAxisAction não configurada. Defina-a (IA_ZoomAxis) no BP_BWPlayerController."),
+			*GetNameSafe(this));
+	}
 }
 
 void ABWPlayerController::HandleMove(const FInputActionValue& Value)
@@ -92,4 +118,34 @@ void ABWPlayerController::HandleMove(const FInputActionValue& Value)
 	// no cliente e correção pelo servidor. Nenhuma replicação manual é necessária.
 	ControlledPawn->AddMovementInput(Forward, Input.Y);
 	ControlledPawn->AddMovementInput(Right, Input.X);
+}
+
+UBWCameraComponent* ABWPlayerController::GetBWCameraComponent() const
+{
+	const APawn* ControlledPawn = GetPawn();
+	return ControlledPawn ? ControlledPawn->FindComponentByClass<UBWCameraComponent>() : nullptr;
+}
+
+void ABWPlayerController::HandleZoomWheel(const FInputActionValue& Value)
+{
+	if (UBWCameraComponent* BWCamera = GetBWCameraComponent())
+	{
+		BWCamera->AddZoomStep(Value.Get<float>());
+	}
+}
+
+void ABWPlayerController::HandleZoomAxisChanged(const FInputActionValue& Value)
+{
+	if (UBWCameraComponent* BWCamera = GetBWCameraComponent())
+	{
+		BWCamera->SetZoomAxisInput(Value.Get<float>());
+	}
+}
+
+void ABWPlayerController::HandleZoomAxisEnded(const FInputActionValue& /*Value*/)
+{
+	if (UBWCameraComponent* BWCamera = GetBWCameraComponent())
+	{
+		BWCamera->SetZoomAxisInput(0.0f);
+	}
 }

@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera)
 
 #pragma once
 
@@ -6,15 +6,18 @@
 #include "Character/BWCharacterBase.h"
 #include "BWPlayerCharacter.generated.h"
 
+class UBWCameraComponent;
 class UCameraComponent;
 class USpringArmComponent;
 
 /**
  * Personagem controlado por jogador.
  *
- * Etapa 1.2: câmera PROVISÓRIA (braço fixo visto de cima), apenas para enxergar o teste de rede.
- * Etapa 1.3 substitui por BWCameraComponent (zoom, enquadramento, fade de obstruções).
- * Etapa 1.5 inicializa aqui o AbilitySystemComponent vindo do PlayerState.
+ * Etapa 1.3: CameraBoom e FollowCamera continuam criados aqui, com os mesmos
+ * nomes — a árvore de componentes do BP_BWPlayerCharacter criado na 1.2 não
+ * muda. O UBWCameraComponent coordena zoom e fade, com os valores vindos do
+ * DA_BWCameraSettings (atribuído ao componente BWCamera no Blueprint).
+ * Etapa 1.5 inicializará aqui o AbilitySystemComponent vindo do PlayerState.
  *
  * Abstract: o jogo usa o filho em Blueprint (BP_BWPlayerCharacter), que define malha e animação.
  */
@@ -27,10 +30,14 @@ public:
 	ABWPlayerCharacter();
 
 private:
-	/** Braço da câmera provisória. Rotação absoluta: não gira junto com o personagem. */
+	/** Braço da câmera. Rotação absoluta: não gira junto com o personagem. Pitch e comprimento aplicados pelo BWCamera a partir do Data Asset. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BW|Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BW|Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FollowCamera;
+
+	/** Coordena zoom suave e fade de obstruções (Etapa 1.3). 100% local. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BW|Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UBWCameraComponent> BWCamera;
 };
