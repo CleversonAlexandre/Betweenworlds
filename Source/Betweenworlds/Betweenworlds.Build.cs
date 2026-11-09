@@ -1,5 +1,6 @@
-// Between Worlds — regras de build do módulo principal (módulo "Betweenworlds").
-// Etapa 1 (Fundação): apenas as dependências necessárias para rede, GAS e Enhanced Input.
+// Between Worlds — arquivo de build do módulo Betweenworlds
+// Etapa 1.4-a: adicionado "NavigationSystem" (navmesh, caminhos para o clique-para-mover).
+// AIModule NÃO é necessário (o caminho é seguido pelo BWPathFollowComponent).
 
 using UnrealBuildTool;
 
@@ -9,7 +10,8 @@ public class Betweenworlds : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		// Permite includes relativos à raiz do módulo, ex.: #include "Core/BWPlayerController.h"
+		// OBRIGATÓRIO: permite includes relativos à raiz do módulo,
+		// ex.: #include "Character/BWCharacterBase.h". Não remover.
 		PublicIncludePaths.Add(ModuleDirectory);
 
 		PublicDependencyModuleNames.AddRange(new string[]
@@ -19,6 +21,7 @@ public class Betweenworlds : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
+			"NavigationSystem",
 
 			// GAS: público porque headers do projeto expõem tipos do GAS.
 			"GameplayAbilities",

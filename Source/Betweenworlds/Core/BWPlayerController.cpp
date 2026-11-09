@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover)
 
 #include "Core/BWPlayerController.h"
 
@@ -6,10 +6,13 @@
 #include "Camera/PlayerCameraManager.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/LocalPlayer.h"
+#include "GameFramework/InputDeviceSubsystem.h"
+#include "GameFramework/InputSettings.h"
 #include "GameFramework/Pawn.h"
 #include "InputActionValue.h"
-#include "InputMappingContext.h"
+#include "Movement/BWPathFollowComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBWPlayerController, Log, All);
 
@@ -46,6 +49,36 @@ void ABWPlayerController::BeginPlay()
 			TEXT("%s: DirectControlMappingContext não configurado. Defina-o no BP_BWPlayerController."),
 			*GetNameSafe(this));
 	}
+
+	// Modo inicial: teclado/mouse (padrão de PC), com o IMC do clique.
+	if (MouseKeyboardMappingContext)
+	{
+		InputSubsystem->AddMappingContext(MouseKeyboardMappingContext, MouseKeyboardMappingPriority);
+	}
+	else
+	{
+		UE_LOG(LogBWPlayerController, Warning,
+			TEXT("%s: MouseKeyboardMappingContext não configurado (IMC_MouseKeyboard). O clique-para-mover não funcionará."),
+			*GetNameSafe(this));
+	}
+	ApplyInputDeviceMode();
+
+	// A1: troca automática de modo pelo último dispositivo físico usado.
+	if (UInputDeviceSubsystem* DeviceSubsystem = UInputDeviceSubsystem::Get())
+	{
+		DeviceSubsystem->OnInputHardwareDeviceChanged.AddDynamic(this, &ThisClass::HandleInputHardwareDeviceChanged);
+		RefreshInputDeviceModeFromHardware();
+	}
+}
+
+void ABWPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UInputDeviceSubsystem* DeviceSubsystem = UInputDeviceSubsystem::Get())
+	{
+		DeviceSubsystem->OnInputHardwareDeviceChanged.RemoveDynamic(this, &ThisClass::HandleInputHardwareDeviceChanged);
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void ABWPlayerController::SetupInputComponent()
@@ -63,6 +96,11 @@ void ABWPlayerController::SetupInputComponent()
 	if (MoveAction)
 	{
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::HandleMove);
+
+		// Started/Completed acompanham a INTENÇÃO (apertar/soltar): apertar cancela
+		// caminho em curso; soltando, o clique volta a valer.
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Started, this, &ThisClass::HandleMoveStarted);
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &ThisClass::HandleMoveEnded);
 	}
 	else
 	{
@@ -71,7 +109,17 @@ void ABWPlayerController::SetupInputComponent()
 			*GetNameSafe(this));
 	}
 
-	// Etapa 1.3: zoom da câmera.
+	if (ClickMoveAction)
+	{
+		EnhancedInput->BindAction(ClickMoveAction, ETriggerEvent::Started, this, &ThisClass::HandleClickMoveStarted);
+	}
+	else
+	{
+		UE_LOG(LogBWPlayerController, Warning,
+			TEXT("%s: ClickMoveAction não configurada. Defina-a (IA_ClickMove) no BP_BWPlayerController."),
+			*GetNameSafe(this));
+	}
+
 	if (ZoomWheelAction)
 	{
 		EnhancedInput->BindAction(ZoomWheelAction, ETriggerEvent::Triggered, this, &ThisClass::HandleZoomWheel);
@@ -97,6 +145,81 @@ void ABWPlayerController::SetupInputComponent()
 	}
 }
 
+// ---------------------------------------------------------------------------------
+// A1: troca automática pelo último dispositivo usado.
+// O UInputDeviceSubsystem da engine já rastreia o último hardware de cada usuário
+// (teclado/mouse, gamepad...) e avisa quando muda. Na PIE com vários jogadores,
+// cada janela tem seu próprio PlatformUserId, por isso filtramos pelo nosso.
+// ---------------------------------------------------------------------------------
+void ABWPlayerController::HandleInputHardwareDeviceChanged(const FPlatformUserId UserId, const FInputDeviceId /*DeviceId*/)
+{
+	if (!IsLocalController() || UserId != GetPlatformUserId())
+	{
+		return;
+	}
+
+	RefreshInputDeviceModeFromHardware();
+}
+
+void ABWPlayerController::RefreshInputDeviceModeFromHardware()
+{
+	UInputDeviceSubsystem* DeviceSubsystem = UInputDeviceSubsystem::Get();
+	if (!DeviceSubsystem || !IsLocalController())
+	{
+		return;
+	}
+
+	const FHardwareDeviceIdentifier Device = DeviceSubsystem->GetMostRecentlyUsedHardwareDevice(GetPlatformUserId());
+	switch (Device.PrimaryDeviceType)
+	{
+	case EHardwareDevicePrimaryType::Gamepad:
+		SetInputDeviceMode(EBWInputDeviceMode::Gamepad);
+		break;
+	case EHardwareDevicePrimaryType::KeyboardAndMouse:
+		SetInputDeviceMode(EBWInputDeviceMode::MouseKeyboard);
+		break;
+	default:
+		// Tipo desconhecido (ou ainda nenhum input): mantém o modo atual.
+		break;
+	}
+}
+
+void ABWPlayerController::SetInputDeviceMode(EBWInputDeviceMode NewMode)
+{
+	if (InputDeviceMode == NewMode)
+	{
+		return;
+	}
+
+	InputDeviceMode = NewMode;
+	ApplyInputDeviceMode();
+
+	UE_LOG(LogBWPlayerController, Log,
+		TEXT("%s: modo de entrada alterado para %s"),
+		*GetNameSafe(this),
+		InputDeviceMode == EBWInputDeviceMode::Gamepad ? TEXT("Controle") : TEXT("Teclado/Mouse"));
+
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
+		GetLocalPlayer() ? GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
+	if (InputSubsystem && MouseKeyboardMappingContext)
+	{
+		if (InputDeviceMode == EBWInputDeviceMode::MouseKeyboard)
+		{
+			InputSubsystem->AddMappingContext(MouseKeyboardMappingContext, MouseKeyboardMappingPriority);
+		}
+		else
+		{
+			InputSubsystem->RemoveMappingContext(MouseKeyboardMappingContext);
+		}
+	}
+}
+
+void ABWPlayerController::ApplyInputDeviceMode()
+{
+	// Cursor visível só no modo teclado/mouse; no modo controle a mira é o personagem.
+	bShowMouseCursor = (InputDeviceMode == EBWInputDeviceMode::MouseKeyboard);
+}
+
 void ABWPlayerController::HandleMove(const FInputActionValue& Value)
 {
 	APawn* ControlledPawn = GetPawn();
@@ -120,10 +243,71 @@ void ABWPlayerController::HandleMove(const FInputActionValue& Value)
 	ControlledPawn->AddMovementInput(Right, Input.X);
 }
 
+void ABWPlayerController::HandleMoveStarted(const FInputActionValue& /*Value*/)
+{
+	bDirectMoveInputActive = true;
+
+	// Movimento direto tem prioridade sobre o caminho do clique.
+	if (UBWPathFollowComponent* PathFollow = GetBWPathFollowComponent())
+	{
+		PathFollow->StopPathFollowing();
+	}
+}
+
+void ABWPlayerController::HandleMoveEnded(const FInputActionValue& /*Value*/)
+{
+	bDirectMoveInputActive = false;
+}
+
+void ABWPlayerController::HandleClickMoveStarted(const FInputActionValue& /*Value*/)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	// A1: clique só existe no modo teclado/mouse.
+	if (InputDeviceMode != EBWInputDeviceMode::MouseKeyboard)
+	{
+		return;
+	}
+
+	// Enquanto o jogador dirige com WASD/stick, cliques são ignorados.
+	if (bDirectMoveInputActive)
+	{
+		return;
+	}
+
+	// B1: sem hit (céu/espaço vazio) não há destino; pedido ignorado.
+	FHitResult Hit;
+	if (!GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
+	{
+		return;
+	}
+
+	RequestMoveTo(Hit.ImpactPoint);
+}
+
+void ABWPlayerController::RequestMoveTo(const FVector& Destination)
+{
+	// Executa localmente (host ou cliente): o componente segue o caminho com
+	// AddMovementInput e o CharacterMovement replica/valida no servidor.
+	if (UBWPathFollowComponent* PathFollow = GetBWPathFollowComponent())
+	{
+		PathFollow->StartPathFollowing(Destination);
+	}
+}
+
 UBWCameraComponent* ABWPlayerController::GetBWCameraComponent() const
 {
 	const APawn* ControlledPawn = GetPawn();
 	return ControlledPawn ? ControlledPawn->FindComponentByClass<UBWCameraComponent>() : nullptr;
+}
+
+UBWPathFollowComponent* ABWPlayerController::GetBWPathFollowComponent() const
+{
+	const APawn* ControlledPawn = GetPawn();
+	return ControlledPawn ? ControlledPawn->FindComponentByClass<UBWPathFollowComponent>() : nullptr;
 }
 
 void ABWPlayerController::HandleZoomWheel(const FInputActionValue& Value)
