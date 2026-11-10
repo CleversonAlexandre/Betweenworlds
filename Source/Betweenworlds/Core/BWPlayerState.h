@@ -1,16 +1,19 @@
-// Between Worlds — Etapa 1.5 (GAS fundação: ASC no PlayerState + primeira habilidade)
+// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects)
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "AbilitySystemInterface.h"
 #include "GameFramework/PlayerState.h"
-#include "GameplayTagContainer.h" // FGameplayTag da struct de grant — no .h: o UHT lê este arquivo isolado (lição do erro #3)
+#include "GameplayTagContainer.h" // FGameplayTag da struct de grant — no .h: o UHT lê este arquivo isolado
 #include "Templates/SubclassOf.h" // TSubclassOf da struct de grant
 #include "BWPlayerState.generated.h"
 
 class UBWAbilitySystemComponent;
+class UBWHealthSet;
+class UBWResourceSet;
 class UGameplayAbility;
+class UGameplayEffect;
 
 /**
  * Concessão de habilidade: a classe + o slot (InputTag) que a aciona.
@@ -32,16 +35,15 @@ struct FBWAbilityGrant
 };
 
 /**
- * PlayerState do jogador. Etapa 1.5: aqui vive o AbilitySystemComponent
- * (TECHNICAL_DESIGN §4) — sobrevive a respawn e replica ao cliente dono.
+ * PlayerState do jogador. Aqui vivem o AbilitySystemComponent e os AttributeSets
+ * (TECHNICAL_DESIGN §4): sobrevivem a respawn e replicam ao grupo.
  *
- * Replication mode MIXED (padrão para player-controlled): a lista de habilidades
- * concedidas replica ao CLIENTE DONO (é o que permite predição de input) e os
- * GameplayEffects ficam leves para os outros jogadores.
+ * Replication mode MIXED: a lista de habilidades e os efeitos completos replicam
+ * ao CLIENTE DONO; atributos replicam a todos (por propriedade).
  *
  * O BWPlayerCharacter (avatar) liga este ASC a si mesmo em PossessedBy (servidor)
  * e OnRep_PlayerState (cliente) e pede o grant no servidor. Configurar
- * DefaultAbilities no BP_BWPlayerState.
+ * DefaultAbilities e DefaultEffects no BP_BWPlayerState.
  */
 UCLASS()
 class BETWEENWORLDS_API ABWPlayerState : public APlayerState, public IAbilitySystemInterface
@@ -57,10 +59,13 @@ public:
 	/** Getter tipado para o código do projeto. */
 	UBWAbilitySystemComponent* GetBWAbilitySystemComponent() const { return AbilitySystemComponent; }
 
+	UBWHealthSet* GetHealthSet() const { return HealthSet; }
+	UBWResourceSet* GetResourceSet() const { return ResourceSet; }
+
 	/**
-	 * Concede DefaultAbilities ao ASC. SÓ servidor (chamado pelo BWPlayerCharacter
-	 * ao ser possuído); cada PlayerState concede UMA vez (guard). No cliente a lista
-	 * chega replicada (Mixed) — não se concede nada lá.
+	 * Concede DefaultAbilities e aplica DefaultEffects (valores iniciais, regeneração).
+	 * SÓ servidor (chamado pelo BWPlayerCharacter ao ser possuído); cada PlayerState
+	 * faz isso UMA vez (guard) — respawn não reconcede nem reinicia atributos.
 	 */
 	void GrantDefaultAbilities();
 
@@ -69,9 +74,24 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "BW|Abilities")
 	TObjectPtr<UBWAbilitySystemComponent> AbilitySystemComponent;
 
+	/** Vida (Etapa 1.6). Subobjeto do PlayerState: o ASC o registra sozinho. */
+	UPROPERTY()
+	TObjectPtr<UBWHealthSet> HealthSet;
+
+	/** Mana e Stamina (Etapa 1.6). */
+	UPROPERTY()
+	TObjectPtr<UBWResourceSet> ResourceSet;
+
 	/** Habilidades concedidas no início da sessão (servidor). Configurar no BP_BWPlayerState. */
 	UPROPERTY(EditDefaultsOnly, Category = "BW|Abilities")
 	TArray<FBWAbilityGrant> DefaultAbilities;
+
+	/**
+	 * Efeitos aplicados no início da sessão (servidor), em ordem.
+	 * Ex.: GE_InitAttributes (valores iniciais) e GE_StaminaRegen (regeneração).
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "BW|Abilities")
+	TArray<TSubclassOf<UGameplayEffect>> DefaultEffects;
 
 private:
 	/** Guard do grant: uma única vez por PlayerState (respawn não reconcede). */

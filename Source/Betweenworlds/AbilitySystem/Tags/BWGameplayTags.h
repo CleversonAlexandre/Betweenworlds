@@ -22,3 +22,6 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Ability_1);
 
 /** Slot de habilidade 2 (teclado: 2 / controle: Gamepad Face Button Top). */
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Ability_2);
+
+// Etapa 1.6 — tag concedida pelo GE_Cooldown_Dash enquanto o dash está em recarga.
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Cooldown_Ability_Dash);

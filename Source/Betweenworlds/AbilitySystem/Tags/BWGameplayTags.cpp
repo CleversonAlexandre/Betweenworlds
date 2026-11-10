@@ -11,3 +11,6 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Ability_1,
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Ability_2,
 	"InputTag.Ability.2",
 	"Slot de habilidade 2 (teclado: 2 / controle: Gamepad Face Button Top)");
+
+// Etapa 1.6
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Cooldown_Ability_Dash, "Cooldown.Ability.Dash", "Dash em recarga (concedida pelo GE_Cooldown_Dash).");
