@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.5 (GAS: PlayerState padrão)
 
 #pragma once
 
@@ -14,6 +14,10 @@
  *
  * Nesta etapa só define as classes padrão. A escolha de PlayerStart usa o
  * comportamento padrão da engine, que já prioriza pontos de spawn desocupados.
+ *
+ * Etapa 1.5: define o BWPlayerState como padrão (PlayerStateClass) — o
+ * PlayerState carrega o AbilitySystemComponent do GAS. O BP_BWGameMode aponta
+ * para o BP_BWPlayerState, onde ficam as habilidades concedidas.
  *
  * Abstract: o jogo usa o filho em Blueprint (BP_BWGameMode), onde ficam
  * as referências a assets (personagem, controller configurado).

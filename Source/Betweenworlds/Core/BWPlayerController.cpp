@@ -1,9 +1,11 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags) / 1.5 (GAS)
 
 #include "Core/BWPlayerController.h"
 
+#include "AbilitySystem/BWAbilitySystemComponent.h"
 #include "Camera/BWCameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Core/BWPlayerState.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/EngineTypes.h"
@@ -371,17 +373,33 @@ void ABWPlayerController::BindTaggedInputActions(UEnhancedInputComponent* Enhanc
 
 void ABWPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
 {
-	// Etapa 1.4-b: roteamento validado por log. Etapa 1.5 (TECHNICAL_DESIGN §4):
-	// este método repassa "tag pressionada" ao AbilitySystemComponent (PlayerState).
 	UE_LOG(LogBWPlayerController, Log,
 		TEXT("%s: InputTag %s PRESSIONADA"),
 		*GetNameSafe(this), *InputTag.ToString());
+
+	// Etapa 1.5 (TECHNICAL_DESIGN §4): o controller SÓ repassa a tag ao ASC do
+	// PlayerState — quem ativa é o ASC (servidor valida; cliente dono prediz).
+	if (ABWPlayerState* BWPlayerState = GetPlayerState<ABWPlayerState>())
+	{
+		if (UBWAbilitySystemComponent* AbilitySystem = BWPlayerState->GetBWAbilitySystemComponent())
+		{
+			AbilitySystem->BWAbilityInputTagPressed(InputTag);
+		}
+	}
 }
 
 void ABWPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 {
-	// Etapa 1.4-b: só registra no log. Etapa 1.5: repassa "tag solta" ao ASC.
 	UE_LOG(LogBWPlayerController, Log,
 		TEXT("%s: InputTag %s solta"),
 		*GetNameSafe(this), *InputTag.ToString());
+
+	// Etapa 1.5: repassa ao ASC (decisão C1: habilidades de "segurar" virão depois).
+	if (ABWPlayerState* BWPlayerState = GetPlayerState<ABWPlayerState>())
+	{
+		if (UBWAbilitySystemComponent* AbilitySystem = BWPlayerState->GetBWAbilitySystemComponent())
+		{
+			AbilitySystem->BWAbilityInputTagReleased(InputTag);
+		}
+	}
 }

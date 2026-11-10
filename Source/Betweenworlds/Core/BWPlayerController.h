@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags) / 1.5 (GAS)
 
 #pragma once
 
@@ -32,8 +32,9 @@ enum class EBWInputDeviceMode : uint8
  * CharacterMovementComponent — o servidor continua com autoridade sobre a posição.
  * Troca automática do modo de entrada pelo último dispositivo usado (A1),
  * detectada pelo UInputDeviceSubsystem da engine.
- * Etapa 1.4-b: roteamento botão → InputTag (UBWInputConfig) — a infra que a 1.5
- * (GAS) consulta: cada habilidade é acionada pela tag do seu slot.
+ * Etapa 1.4-b: roteamento botão → InputTag (UBWInputConfig).
+ * Etapa 1.5: repassa "tag pressionada/solta" ao AbilitySystemComponent do
+ * PlayerState (TECHNICAL_DESIGN §4) — o ASC ativa a habilidade do slot.
  */
 UCLASS()
 class BETWEENWORLDS_API ABWPlayerController : public APlayerController
@@ -72,12 +73,12 @@ private:
 
         /**
          * Slot de habilidade pressionado (InputTag.Ability.1 / .2).
-         * Etapa 1.4-b: só registra no log. Etapa 1.5 (TECHNICAL_DESIGN §4): o controller
-         * repassa "tag pressionada" direto ao AbilitySystemComponent (PlayerState) — sem delegates.
+         * Etapa 1.5: loga e repassa a tag ao AbilitySystemComponent do PlayerState
+         * (TECHNICAL_DESIGN §4) — sem delegates.
          */
         void AbilityInputTagPressed(FGameplayTag InputTag);
 
-        /** Slot de habilidade solto. Mesma evolução do método acima na 1.5. */
+        /** Slot de habilidade solto. Etapa 1.5: loga e repassa ao ASC do PlayerState. */
         void AbilityInputTagReleased(FGameplayTag InputTag);
 
         /** Componente de câmera do pawn possuído (ou null). */
