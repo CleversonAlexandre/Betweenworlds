@@ -1,22 +1,25 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags)
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h" // FGameplayTag das habilidades — no .h: o UHT lê este arquivo isolado (lição do erro #3)
 #include "BWPlayerController.generated.h"
 
 class UBWCameraComponent;
+class UBWInputConfig;
 class UBWPathFollowComponent;
 class UInputAction;
 class UInputMappingContext;
+class UEnhancedInputComponent;
 struct FInputActionValue;
 
 /** Dispositivo usado por último pelo jogador local (decisão A1 da Etapa 1.4-a). */
 enum class EBWInputDeviceMode : uint8
 {
-	MouseKeyboard,
-	Gamepad
+        MouseKeyboard,
+        Gamepad
 };
 
 /**
@@ -29,103 +32,121 @@ enum class EBWInputDeviceMode : uint8
  * CharacterMovementComponent — o servidor continua com autoridade sobre a posição.
  * Troca automática do modo de entrada pelo último dispositivo usado (A1),
  * detectada pelo UInputDeviceSubsystem da engine.
- * A 1.4-b adicionará o roteamento de InputTags para o GAS.
+ * Etapa 1.4-b: roteamento botão → InputTag (UBWInputConfig) — a infra que a 1.5
+ * (GAS) consulta: cada habilidade é acionada pela tag do seu slot.
  */
 UCLASS()
 class BETWEENWORLDS_API ABWPlayerController : public APlayerController
 {
-	GENERATED_BODY()
+        GENERATED_BODY()
 
 protected:
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void SetupInputComponent() override;
+        virtual void BeginPlay() override;
+        virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+        virtual void SetupInputComponent() override;
 
 private:
-	/** Converte o eixo 2D de input em movimento no plano, relativo à direção da câmera. */
-	void HandleMove(const FInputActionValue& Value);
+        /** Converte o eixo 2D de input em movimento no plano, relativo à direção da câmera. */
+        void HandleMove(const FInputActionValue& Value);
 
-	/** Primeiro input direto do movimento (tecla ou stick): cancela caminho em curso. */
-	void HandleMoveStarted(const FInputActionValue& Value);
+        /** Primeiro input direto do movimento (tecla ou stick): cancela caminho em curso. */
+        void HandleMoveStarted(const FInputActionValue& Value);
 
-	/** Movimento direto solto: marca que o clique pode voltar a valer. */
-	void HandleMoveEnded(const FInputActionValue& Value);
+        /** Movimento direto solto: marca que o clique pode voltar a valer. */
+        void HandleMoveEnded(const FInputActionValue& Value);
 
-	/** Clique esquerdo (IA_ClickMove): trace sob o cursor e início do caminho local. */
-	void HandleClickMoveStarted(const FInputActionValue& Value);
+        /** Clique esquerdo (IA_ClickMove): trace sob o cursor e início do caminho local. */
+        void HandleClickMoveStarted(const FInputActionValue& Value);
 
-	/** Zoom discreto (roda do mouse): um passo por clique. */
-	void HandleZoomWheel(const FInputActionValue& Value);
+        /** Zoom discreto (roda do mouse): um passo por clique. */
+        void HandleZoomWheel(const FInputActionValue& Value);
 
-	/** Zoom contínuo (analógico): alimenta o componente enquanto o stick está inclinado. */
-	void HandleZoomAxisChanged(const FInputActionValue& Value);
+        /** Zoom contínuo (analógico): alimenta o componente enquanto o stick está inclinado. */
+        void HandleZoomAxisChanged(const FInputActionValue& Value);
 
-	/** Zera a entrada analógica quando o stick é solto. */
-	void HandleZoomAxisEnded(const FInputActionValue& Value);
+        /** Zera a entrada analógica quando o stick é solto. */
+        void HandleZoomAxisEnded(const FInputActionValue& Value);
 
-	/** Componente de câmera do pawn possuído (ou null). */
-	UBWCameraComponent* GetBWCameraComponent() const;
+        /** Faz o bind de cada ação com tag do BWInputConfig → AbilityInputTagPressed/Released (Etapa 1.4-b). */
+        void BindTaggedInputActions(UEnhancedInputComponent* EnhancedInput);
 
-	/** Componente de caminho do pawn possuído (ou null). */
-	UBWPathFollowComponent* GetBWPathFollowComponent() const;
+        /**
+         * Slot de habilidade pressionado (InputTag.Ability.1 / .2).
+         * Etapa 1.4-b: só registra no log. Etapa 1.5 (TECHNICAL_DESIGN §4): o controller
+         * repassa "tag pressionada" direto ao AbilitySystemComponent (PlayerState) — sem delegates.
+         */
+        void AbilityInputTagPressed(FGameplayTag InputTag);
 
-	/** Começa a seguir um caminho até o destino (somente no controller local). */
-	void RequestMoveTo(const FVector& Destination);
+        /** Slot de habilidade solto. Mesma evolução do método acima na 1.5. */
+        void AbilityInputTagReleased(FGameplayTag InputTag);
 
-	/**
-	 * Chamado pela engine (UInputDeviceSubsystem) quando um usuário troca de dispositivo
-	 * físico. Substitui o override de APlayerController::InputKey, que é 'final' na 5.7.
-	 */
-	UFUNCTION()
-	void HandleInputHardwareDeviceChanged(const FPlatformUserId UserId, const FInputDeviceId DeviceId);
+        /** Componente de câmera do pawn possuído (ou null). */
+        UBWCameraComponent* GetBWCameraComponent() const;
 
-	/** Lê o último dispositivo do usuário local e aplica o modo correspondente. */
-	void RefreshInputDeviceModeFromHardware();
+        /** Componente de caminho do pawn possuído (ou null). */
+        UBWPathFollowComponent* GetBWPathFollowComponent() const;
 
-	/** Aplica o modo de entrada novo, se mudou: troca o IMC do clique e o cursor. */
-	void SetInputDeviceMode(EBWInputDeviceMode NewMode);
+        /** Começa a seguir um caminho até o destino (somente no controller local). */
+        void RequestMoveTo(const FVector& Destination);
 
-	/** Efeitos visuais do modo atual (cursor). */
-	void ApplyInputDeviceMode();
+        /**
+         * Chamado pela engine (UInputDeviceSubsystem) quando um usuário troca de dispositivo
+         * físico. Substitui o override de APlayerController::InputKey, que é 'final' na 5.7.
+         */
+        UFUNCTION()
+        void HandleInputHardwareDeviceChanged(const FPlatformUserId UserId, const FInputDeviceId DeviceId);
 
-	/** Mapeamento para WASD e controle (IMC_DirectControl). */
-	UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
-	TObjectPtr<UInputMappingContext> DirectControlMappingContext;
+        /** Lê o último dispositivo do usuário local e aplica o modo correspondente. */
+        void RefreshInputDeviceModeFromHardware();
 
-	/** Prioridade do mapeamento acima. Maior vence quando dois contextos usam a mesma tecla. */
-	UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
-	int32 DirectControlMappingPriority = 0;
+        /** Aplica o modo de entrada novo, se mudou: troca o IMC do clique e o cursor. */
+        void SetInputDeviceMode(EBWInputDeviceMode NewMode);
 
-	/**
-	 * Mapeamento do modo teclado/mouse (IMC_MouseKeyboard), com o clique-para-mover.
-	 * Adicionado/removido conforme o último dispositivo usado (A1).
-	 */
-	UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
-	TObjectPtr<UInputMappingContext> MouseKeyboardMappingContext;
+        /** Efeitos visuais do modo atual (cursor). */
+        void ApplyInputDeviceMode();
 
-	/** Prioridade do mapeamento acima. */
-	UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
-	int32 MouseKeyboardMappingPriority = 1;
+        /** Mapeamento para WASD e controle (IMC_DirectControl). */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
+        TObjectPtr<UInputMappingContext> DirectControlMappingContext;
 
-	/** Ação de movimento, tipo Axis2D (IA_Move). */
-	UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
-	TObjectPtr<UInputAction> MoveAction;
+        /** Prioridade do mapeamento acima. Maior vence quando dois contextos usam a mesma tecla. */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
+        int32 DirectControlMappingPriority = 0;
 
-	/** Ação do clique-para-mover, tipo Bool (IA_ClickMove, botão esquerdo). */
-	UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
-	TObjectPtr<UInputAction> ClickMoveAction;
+        /**
+         * Mapeamento do modo teclado/mouse (IMC_MouseKeyboard), com o clique-para-mover.
+         * Adicionado/removido conforme o último dispositivo usado (A1).
+         */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
+        TObjectPtr<UInputMappingContext> MouseKeyboardMappingContext;
 
-	/** Ação de zoom da roda do mouse, tipo Axis1D (IA_ZoomWheel). */
-	UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
-	TObjectPtr<UInputAction> ZoomWheelAction;
+        /** Prioridade do mapeamento acima. */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
+        int32 MouseKeyboardMappingPriority = 1;
 
-	/** Ação de zoom do analógico, tipo Axis1D (IA_ZoomAxis). */
-	UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
-	TObjectPtr<UInputAction> ZoomAxisAction;
+        /** Ação de movimento, tipo Axis2D (IA_Move). */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
+        TObjectPtr<UInputAction> MoveAction;
 
-	/** Modo de entrada atual (local, não replicado). */
-	EBWInputDeviceMode InputDeviceMode = EBWInputDeviceMode::MouseKeyboard;
+        /** Ação do clique-para-mover, tipo Bool (IA_ClickMove, botão esquerdo). */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
+        TObjectPtr<UInputAction> ClickMoveAction;
 
-	/** True enquanto WASD/stick está pressionado: clique é ignorado (comportamento de ARPG com WASD). */
-	bool bDirectMoveInputActive = false;
+        /** Ação de zoom da roda do mouse, tipo Axis1D (IA_ZoomWheel). */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
+        TObjectPtr<UInputAction> ZoomWheelAction;
+
+        /** Ação de zoom do analógico, tipo Axis1D (IA_ZoomAxis). */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
+        TObjectPtr<UInputAction> ZoomAxisAction;
+
+        /** Roteamento botão → InputTag (DA_BWInputConfig, Etapa 1.4-b). Só habilidades: os inputs nativos (WASD, clique, zoom) ficam fora — decisão B1. */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Input")
+        TObjectPtr<UBWInputConfig> BWInputConfig;
+
+        /** Modo de entrada atual (local, não replicado). */
+        EBWInputDeviceMode InputDeviceMode = EBWInputDeviceMode::MouseKeyboard;
+
+        /** True enquanto WASD/stick está pressionado: clique é ignorado (comportamento de ARPG com WASD). */
+        bool bDirectMoveInputActive = false;
 };

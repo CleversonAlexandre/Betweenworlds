@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags)
 
 #include "Core/BWPlayerController.h"
 
@@ -12,6 +12,7 @@
 #include "GameFramework/InputSettings.h"
 #include "GameFramework/Pawn.h"
 #include "InputActionValue.h"
+#include "Input/BWInputConfig.h"
 #include "Movement/BWPathFollowComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBWPlayerController, Log, All);
@@ -143,6 +144,9 @@ void ABWPlayerController::SetupInputComponent()
 			TEXT("%s: ZoomAxisAction não configurada. Defina-a (IA_ZoomAxis) no BP_BWPlayerController."),
 			*GetNameSafe(this));
 	}
+
+	// Etapa 1.4-b: ações com TAG (slots de habilidade) do BWInputConfig.
+	BindTaggedInputActions(EnhancedInput);
 }
 
 // ---------------------------------------------------------------------------------
@@ -332,4 +336,52 @@ void ABWPlayerController::HandleZoomAxisEnded(const FInputActionValue& /*Value*/
 	{
 		BWCamera->SetZoomAxisInput(0.0f);
 	}
+}
+
+// ---------------------------------------------------------------------------------
+// Etapa 1.4-b: roteamento botão → InputTag (infra das habilidades da 1.5).
+// A MESMA Input Action está mapeada no teclado e no controle (IMC_DirectControl),
+// então qualquer dispositivo dispara a MESMA tag — exigência da 1.5. A tag é
+// levada no próprio bind (payload), padrão do Lyra (amostra oficial da Epic).
+// ---------------------------------------------------------------------------------
+void ABWPlayerController::BindTaggedInputActions(UEnhancedInputComponent* EnhancedInput)
+{
+	if (!BWInputConfig)
+	{
+		UE_LOG(LogBWPlayerController, Warning,
+			TEXT("%s: BWInputConfig não configurado (DA_BWInputConfig). Os slots de habilidade não responderão."),
+			*GetNameSafe(this));
+		return;
+	}
+
+	for (const FBWInputAction& Entry : BWInputConfig->TaggedInputActions)
+	{
+		if (!Entry.InputAction || !Entry.InputTag.IsValid())
+		{
+			continue;
+		}
+
+		// Apertar = Started; soltar = Completed. A tag vai no payload do bind.
+		EnhancedInput->BindAction(Entry.InputAction, ETriggerEvent::Started,
+			this, &ThisClass::AbilityInputTagPressed, Entry.InputTag);
+		EnhancedInput->BindAction(Entry.InputAction, ETriggerEvent::Completed,
+			this, &ThisClass::AbilityInputTagReleased, Entry.InputTag);
+	}
+}
+
+void ABWPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
+{
+	// Etapa 1.4-b: roteamento validado por log. Etapa 1.5 (TECHNICAL_DESIGN §4):
+	// este método repassa "tag pressionada" ao AbilitySystemComponent (PlayerState).
+	UE_LOG(LogBWPlayerController, Log,
+		TEXT("%s: InputTag %s PRESSIONADA"),
+		*GetNameSafe(this), *InputTag.ToString());
+}
+
+void ABWPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
+{
+	// Etapa 1.4-b: só registra no log. Etapa 1.5: repassa "tag solta" ao ASC.
+	UE_LOG(LogBWPlayerController, Log,
+		TEXT("%s: InputTag %s solta"),
+		*GetNameSafe(this), *InputTag.ToString());
 }
