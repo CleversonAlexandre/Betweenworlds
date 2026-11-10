@@ -49,7 +49,7 @@ ABWPlayerCharacter::ABWPlayerCharacter()
         // Listen server: o host também é o servidor; reduzir a taxa de replicação
         // por pawn alivia a game thread dele (gargalo do lag reportado). 30
         // atualizações/s com os buffers acima continuam suaves a 4 jogadores:
-        NetUpdateFrequency = 30.f;
+        SetNetUpdateFrequency(100.0f);
 }
 
 // ---------------------------------------------------------------------------------
