@@ -45,3 +45,6 @@ Archive/
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Paragon (placeholder, fora do Git)
+/Content/Paragon*/
