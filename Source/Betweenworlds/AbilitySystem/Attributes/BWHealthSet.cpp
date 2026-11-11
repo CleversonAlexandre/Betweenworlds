@@ -1,7 +1,9 @@
-// Between Worlds — Etapa 1.6 (Atributos e Gameplay Effects)
+// Between Worlds — Etapa 1.6 (Atributos e Gameplay Effects) / 2.2 (evento de dano recebido)
 
 #include "AbilitySystem/Attributes/BWHealthSet.h"
 
+#include "AbilitySystem/Tags/BWCombatTags.h"
+#include "Abilities/GameplayAbilityTypes.h"
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 
@@ -56,6 +58,19 @@ void UBWHealthSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackDat
 
 			UE_LOG(LogBWHealthSet, Log, TEXT("%s: recebeu %.1f de dano -> Health %.1f / %.1f"),
 				*GetNameSafe(GetOwningActor()), Damage, NewHealth, GetMaxHealth());
+
+			// Avisa quem quiser reagir a dano recebido (Fúria do Guerreiro, futuramente
+			// reação a golpe, passivas, lendários) sem que este set conheça nenhum deles.
+			if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+			{
+				FGameplayEventData Payload;
+				Payload.EventTag = TAG_Event_Damage_Received;
+				Payload.EventMagnitude = Damage;
+				Payload.Instigator = Data.EffectSpec.GetContext().GetOriginalInstigator();
+				Payload.Target = ASC->GetAvatarActor();
+				Payload.ContextHandle = Data.EffectSpec.GetContext();
+				ASC->HandleGameplayEvent(Payload.EventTag, &Payload);
+			}
 
 			if (NewHealth <= 0.0f)
 			{

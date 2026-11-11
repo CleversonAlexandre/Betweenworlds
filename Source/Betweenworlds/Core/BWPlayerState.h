@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects)
+// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects) / 2.2 (sets por classe)
 
 #pragma once
 
@@ -12,6 +12,7 @@
 class UBWAbilitySystemComponent;
 class UBWHealthSet;
 class UBWResourceSet;
+class UAttributeSet;
 class UGameplayAbility;
 class UGameplayEffect;
 
@@ -29,7 +30,7 @@ struct FBWAbilityGrant
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UGameplayAbility> AbilityClass = nullptr;
 
-	/** Slot que aciona a habilidade (InputTag.Ability.1 / .2). */
+	/** Slot que aciona a habilidade (InputTag.Ability.1 / .2). Vazio = passiva (ativada por evento, sem tecla). */
 	UPROPERTY(EditDefaultsOnly, meta = (Categories = "InputTag"))
 	FGameplayTag InputTag;
 };
@@ -63,7 +64,8 @@ public:
 	UBWResourceSet* GetResourceSet() const { return ResourceSet; }
 
 	/**
-	 * Concede DefaultAbilities e aplica DefaultEffects (valores iniciais, regeneração).
+	 * Cria ClassAttributeSets, aplica DefaultEffects (valores iniciais, regeneração)
+	 * e concede DefaultAbilities, nessa ordem.
 	 * SÓ servidor (chamado pelo BWPlayerCharacter ao ser possuído); cada PlayerState
 	 * faz isso UMA vez (guard) — respawn não reconcede nem reinicia atributos.
 	 */
@@ -81,6 +83,13 @@ protected:
 	/** Mana e Stamina (Etapa 1.6). */
 	UPROPERTY()
 	TObjectPtr<UBWResourceSet> ResourceSet;
+
+	/**
+	 * Sets de atributos próprios da classe (ex.: BWFurySet no Guerreiro), criados no servidor
+	 * no início da sessão, ANTES dos DefaultEffects. Vida, Mana e Stamina já existem sempre.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "BW|Abilities")
+	TArray<TSubclassOf<UAttributeSet>> ClassAttributeSets;
 
 	/** Habilidades concedidas no início da sessão (servidor). Configurar no BP_BWPlayerState. */
 	UPROPERTY(EditDefaultsOnly, Category = "BW|Abilities")
