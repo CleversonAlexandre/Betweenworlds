@@ -21,6 +21,7 @@ public class Betweenworlds : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
+			"UMG",
 			"NavigationSystem",
 
 			// GAS: público porque headers do projeto expõem tipos do GAS.
@@ -29,6 +30,6 @@ public class Betweenworlds : ModuleRules
 			"GameplayTasks"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 	}
 }
