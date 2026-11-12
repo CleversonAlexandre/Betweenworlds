@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.5 (GAS)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.5 (GAS) / 2.3 (morte e respawn)
 
 #pragma once
 
@@ -42,7 +42,13 @@ public:
         virtual void OnRep_PlayerState() override;
         virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
+protected:
+        virtual void BeginPlay() override;
+
 private:
+        /** Etapa 2.3 (servidor): este corpo morreu — pede o respawn ao GameMode. */
+        void HandleDeathStarted(AActor* DeadActor);
+
         /** Braço da câmera. Rotação absoluta: não gira junto com o personagem. Pitch e comprimento aplicados pelo BWCamera a partir do Data Asset. */
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BW|Camera", meta = (AllowPrivateAccess = "true"))
         TObjectPtr<USpringArmComponent> CameraBoom;

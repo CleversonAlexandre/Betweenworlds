@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.5 (GAS: PlayerState padrão)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.5 (GAS: PlayerState padrão) / 2.3 (respawn)
 
 #pragma once
 
@@ -29,4 +29,19 @@ class BETWEENWORLDS_API ABWGameMode : public AGameModeBase
 
 public:
 	ABWGameMode();
+
+	/**
+	 * Etapa 2.3: agenda o respawn do jogador deste controller depois de RespawnDelay.
+	 * O corpo antigo fica no chão até lá; então é destruído e um novo nasce num
+	 * PlayerStart, com os RespawnEffects do PlayerState aplicados.
+	 */
+	void RequestRespawn(AController* Controller);
+
+protected:
+	/** Segundos entre a morte e o respawn. */
+	UPROPERTY(EditDefaultsOnly, Category = "BW|Respawn", meta = (ClampMin = "0.0"))
+	float RespawnDelay = 5.0f;
+
+private:
+	void RespawnNow(TWeakObjectPtr<AController> WeakController);
 };

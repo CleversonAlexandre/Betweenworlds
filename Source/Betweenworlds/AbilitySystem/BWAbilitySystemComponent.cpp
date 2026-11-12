@@ -1,13 +1,23 @@
 // Between Worlds — Etapa 1.5 (GAS fundação: ASC no PlayerState + primeira habilidade)
 // Correção 1.5.1 (Claude): ativação pelo HANDLE do spec que tem a InputTag do slot.
+// Etapa 2.3: morto não ativa habilidades.
 
 #include "AbilitySystem/BWAbilitySystemComponent.h"
+
+#include "AbilitySystem/Tags/BWCombatTags.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBWAbilitySystem, Log, All);
 
 void UBWAbilitySystemComponent::BWAbilityInputTagPressed(const FGameplayTag& InputTag)
 {
 	if (!InputTag.IsValid())
+	{
+		return;
+	}
+
+	// Etapa 2.3: nenhum slot funciona com o personagem morto (vale para todas as
+	// habilidades, sem configurar bloqueio em cada uma).
+	if (HasMatchingGameplayTag(TAG_State_Dead))
 	{
 		return;
 	}

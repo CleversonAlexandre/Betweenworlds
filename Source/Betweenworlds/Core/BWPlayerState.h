@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects) / 2.2 (sets por classe)
+// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects) / 2.2 (sets por classe) / 2.3 (respawn)
 
 #pragma once
 
@@ -71,6 +71,9 @@ public:
 	 */
 	void GrantDefaultAbilities();
 
+	/** Etapa 2.3 (servidor): aplica RespawnEffects (vida e recursos de volta ao início). */
+	void ApplyRespawnEffects();
+
 protected:
 	/** AbilitySystemComponent do jogador (Etapa 1.5). */
 	UPROPERTY(VisibleAnywhere, Category = "BW|Abilities")
@@ -102,7 +105,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "BW|Abilities")
 	TArray<TSubclassOf<UGameplayEffect>> DefaultEffects;
 
+	/**
+	 * Efeitos aplicados a cada respawn (servidor), em ordem. Só os que RESTAURAM valores
+	 * (ex.: GE_InitAttributes, GE_Warrior_InitFury). Não repetir efeitos periódicos/infinitos
+	 * (regeneração, decaimento): esses continuam ativos no ASC, que sobrevive à morte.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "BW|Abilities")
+	TArray<TSubclassOf<UGameplayEffect>> RespawnEffects;
+
 private:
+	/** Aplica uma lista de efeitos neste ASC (servidor). */
+	void ApplyEffectsToSelf(const TArray<TSubclassOf<UGameplayEffect>>& Effects);
+
 	/** Guard do grant: uma única vez por PlayerState (respawn não reconcede). */
 	bool bAbilitiesGranted = false;
 };

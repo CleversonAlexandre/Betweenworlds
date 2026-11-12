@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects) / 2.2 (sets por classe)
+// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects) / 2.2 (sets por classe) / 2.3 (respawn)
 
 #include "Core/BWPlayerState.h"
 
@@ -67,25 +67,7 @@ void ABWPlayerState::GrantDefaultAbilities()
 	}
 
 	// 1) Efeitos iniciais: as habilidades já nascem com recursos definidos.
-	for (const TSubclassOf<UGameplayEffect>& EffectClass : DefaultEffects)
-	{
-		if (!EffectClass)
-		{
-			continue;
-		}
-
-		FGameplayEffectContextHandle Context = AbilitySystemComponent->MakeEffectContext();
-		Context.AddSourceObject(this);
-
-		const FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(EffectClass, /*Level=*/1.0f, Context);
-		if (SpecHandle.IsValid())
-		{
-			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-
-			UE_LOG(LogBWPlayerState, Log, TEXT("%s: efeito inicial %s aplicado"),
-				*GetNameSafe(this), *EffectClass->GetName());
-		}
-	}
+	ApplyEffectsToSelf(DefaultEffects);
 
 	// 2) Habilidades: a InputTag do slot vai nas tags dinâmicas do SPEC (não no asset).
 	//    Sem InputTag = passiva (ativada por Gameplay Event, ex.: Fúria ao receber dano).
@@ -109,5 +91,42 @@ void ABWPlayerState::GrantDefaultAbilities()
 
 		UE_LOG(LogBWPlayerState, Log, TEXT("%s: habilidade %s concedida %s"),
 			*GetNameSafe(this), *Grant.AbilityClass->GetName(), *SlotText);
+	}
+}
+
+void ABWPlayerState::ApplyRespawnEffects()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	ApplyEffectsToSelf(RespawnEffects);
+}
+
+void ABWPlayerState::ApplyEffectsToSelf(const TArray<TSubclassOf<UGameplayEffect>>& Effects)
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	for (const TSubclassOf<UGameplayEffect>& EffectClass : Effects)
+	{
+		if (!EffectClass)
+		{
+			continue;
+		}
+
+		FGameplayEffectContextHandle Context = AbilitySystemComponent->MakeEffectContext();
+		Context.AddSourceObject(this);
+
+		const FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(EffectClass, /*Level=*/1.0f, Context);
+		if (SpecHandle.IsValid())
+		{
+			AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+
+			UE_LOG(LogBWPlayerState, Log, TEXT("%s: efeito %s aplicado"),
+				*GetNameSafe(this), *EffectClass->GetName());
+		}
 	}
 }

@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.5 (GAS)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.5 (GAS) / 2.3 (morte e respawn)
 
 #include "Character/BWPlayerCharacter.h"
 
@@ -7,6 +7,8 @@
 #include "AbilitySystemComponent.h"
 #include "Camera/BWCameraComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Character/BWDeathComponent.h"
+#include "Core/BWGameMode.h"
 #include "Core/BWPlayerState.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -79,6 +81,26 @@ void ABWPlayerCharacter::OnRep_PlayerState()
         InitAbilityActorInfoFromPlayerState();
 }
 
+void ABWPlayerCharacter::BeginPlay()
+{
+        Super::BeginPlay();
+
+        // Etapa 2.3: só o servidor decide o respawn.
+        if (HasAuthority() && DeathComponent)
+        {
+                DeathComponent->OnDeathStarted.AddUObject(this, &ThisClass::HandleDeathStarted);
+        }
+}
+
+void ABWPlayerCharacter::HandleDeathStarted(AActor* /*DeadActor*/)
+{
+        ABWGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<ABWGameMode>() : nullptr;
+        if (GameMode && GetController())
+        {
+                GameMode->RequestRespawn(GetController());
+        }
+}
+
 UAbilitySystemComponent* ABWPlayerCharacter::GetAbilitySystemComponent() const
 {
         const ABWPlayerState* BWPlayerState = GetPlayerState<ABWPlayerState>();
@@ -108,4 +130,11 @@ void ABWPlayerCharacter::InitAbilityActorInfoFromPlayerState()
         // Owner = PlayerState (dono do ASC e da lista de habilidades); Avatar = este
         // personagem (quem executa). Servidor: ativação autoritativa; cliente: predição.
         AbilitySystem->InitAbilityActorInfo(BWPlayerState, this);
+
+        // Etapa 2.3: a morte deste corpo passa a ouvir este ASC (servidor) e a tag
+        // State.Dead volta a refletir este corpo (vivo após respawn).
+        if (DeathComponent)
+        {
+                DeathComponent->InitializeWithAbilitySystem(AbilitySystem);
+        }
 }

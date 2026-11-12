@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.6 (Atributos e Gameplay Effects) / 2.2 (evento de dano recebido)
+// Between Worlds — Etapa 1.6 (Atributos e Gameplay Effects) / 2.2 (evento de dano recebido) / 2.3 (morte)
 
 #include "AbilitySystem/Attributes/BWHealthSet.h"
 
@@ -51,8 +51,16 @@ void UBWHealthSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackDat
 		const float Damage = GetIncomingDamage();
 		SetIncomingDamage(0.0f);
 
+		// Morto não recebe dano (nem gera Fúria, nem morre de novo).
+		UAbilitySystemComponent* OwnerASC = GetOwningAbilitySystemComponent();
+		if (OwnerASC && OwnerASC->HasMatchingGameplayTag(TAG_State_Dead))
+		{
+			return;
+		}
+
 		if (Damage > 0.0f)
 		{
+			const float OldHealth = GetHealth();
 			const float NewHealth = FMath::Clamp(GetHealth() - Damage, 0.0f, GetMaxHealth());
 			SetHealth(NewHealth);
 
@@ -61,7 +69,7 @@ void UBWHealthSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackDat
 
 			// Avisa quem quiser reagir a dano recebido (Fúria do Guerreiro, futuramente
 			// reação a golpe, passivas, lendários) sem que este set conheça nenhum deles.
-			if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+			if (UAbilitySystemComponent* ASC = OwnerASC)
 			{
 				FGameplayEventData Payload;
 				Payload.EventTag = TAG_Event_Damage_Received;
@@ -72,10 +80,15 @@ void UBWHealthSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackDat
 				ASC->HandleGameplayEvent(Payload.EventTag, &Payload);
 			}
 
-			if (NewHealth <= 0.0f)
+			// Morte: só na passagem de "vivo" para 0. Quem trata é o BWDeathComponent do corpo.
+			if (NewHealth <= 0.0f && OldHealth > 0.0f && OwnerASC)
 			{
-				UE_LOG(LogBWHealthSet, Log, TEXT("%s: Health chegou a 0 (morte/respawn = Etapa 2)."),
-					*GetNameSafe(GetOwningActor()));
+				FGameplayEventData DeathPayload;
+				DeathPayload.EventTag = TAG_Event_Death;
+				DeathPayload.Instigator = Data.EffectSpec.GetContext().GetOriginalInstigator();
+				DeathPayload.Target = OwnerASC->GetAvatarActor();
+				DeathPayload.ContextHandle = Data.EffectSpec.GetContext();
+				OwnerASC->HandleGameplayEvent(DeathPayload.EventTag, &DeathPayload);
 			}
 		}
 	}

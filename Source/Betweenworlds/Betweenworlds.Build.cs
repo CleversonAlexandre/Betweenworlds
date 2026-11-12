@@ -1,6 +1,7 @@
 // Between Worlds — arquivo de build do módulo Betweenworlds
 // Etapa 1.4-a: adicionado "NavigationSystem" (navmesh, caminhos para o clique-para-mover).
-// AIModule NÃO é necessário (o caminho é seguido pelo BWPathFollowComponent).
+// Etapa 2.4: "AIModule", "StateTreeModule" e "GameplayStateTreeModule" (IA dos inimigos).
+// O clique-para-mover do jogador continua sem AIModule (BWPathFollowComponent).
 
 using UnrealBuildTool;
 
@@ -23,6 +24,11 @@ public class Betweenworlds : ModuleRules
 			"EnhancedInput",
 			"UMG",
 			"NavigationSystem",
+
+			// Etapa 2.4: IA dos inimigos (AIController, StateTree).
+			"AIModule",
+			"StateTreeModule",
+			"GameplayStateTreeModule",
 
 			// GAS: público porque headers do projeto expõem tipos do GAS.
 			"GameplayAbilities",
