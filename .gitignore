@@ -48,3 +48,7 @@ Thumbs.db
 
 # Paragon (placeholder, fora do Git)
 /Content/Paragon*/
+
+# Packs de referência locais (Lyra, GASP, ALS): fora do Git
+/Content/Audio/
+/Content/_AnimationLibrary/
