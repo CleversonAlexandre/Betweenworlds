@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags) / 1.5 (GAS)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags) / 1.5 (GAS) / 2.5 (ataque principal + marcador de alvo)
 
 #pragma once
 
@@ -10,6 +10,8 @@
 class UBWCameraComponent;
 class UBWInputConfig;
 class UBWPathFollowComponent;
+class UDecalComponent;
+class UMaterialInterface;
 class UInputAction;
 class UInputMappingContext;
 class UEnhancedInputComponent;
@@ -35,6 +37,10 @@ enum class EBWInputDeviceMode : uint8
  * Etapa 1.4-b: roteamento botão → InputTag (UBWInputConfig).
  * Etapa 1.5: repassa "tag pressionada/solta" ao AbilitySystemComponent do
  * PlayerState (TECHNICAL_DESIGN §4) — o ASC ativa a habilidade do slot.
+ * Etapa 2.5: clicar num inimigo = atacar (estilo Diablo). Fora de alcance, anda até ele;
+ * no alcance, ativa o ataque principal (InputTag.Attack.Primary). Segurando o clique,
+ * continua atacando o mesmo alvo (combo); soltando, termina o golpe atual e para.
+ * Ações com tag também repassam "segurado" ao ASC (controle: segurar = combo).
  */
 UCLASS()
 class BETWEENWORLDS_API ABWPlayerController : public APlayerController
@@ -43,6 +49,7 @@ class BETWEENWORLDS_API ABWPlayerController : public APlayerController
 
 protected:
         virtual void BeginPlay() override;
+        virtual void PlayerTick(float DeltaTime) override;
         virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
         virtual void SetupInputComponent() override;
 
@@ -56,8 +63,20 @@ private:
         /** Movimento direto solto: marca que o clique pode voltar a valer. */
         void HandleMoveEnded(const FInputActionValue& Value);
 
-        /** Clique esquerdo (IA_ClickMove): trace sob o cursor e início do caminho local. */
+        /** Clique esquerdo (IA_ClickMove): inimigo sob o cursor = atacar; chão = andar. */
         void HandleClickMoveStarted(const FInputActionValue& Value);
+
+        /** Etapa 2.5: clique solto (encerra o "segurar para atacar"). */
+        void HandleClickMoveCompleted(const FInputActionValue& Value);
+
+        /** Etapa 2.5 (só local): persegue o alvo do clique e ataca quando estiver no alcance. */
+        void UpdateAttackTarget(float DeltaTime);
+
+        /** Etapa 2.5: abandona o alvo de ataque (e remove o marcador). */
+        void ClearAttackTarget();
+
+        /** Etapa 2.5: trava o alvo de ataque e mostra o marcador embaixo dele. */
+        void SetAttackTarget(AActor* NewTarget);
 
         /** Zoom discreto (roda do mouse): um passo por clique. */
         void HandleZoomWheel(const FInputActionValue& Value);
@@ -80,6 +99,9 @@ private:
 
         /** Slot de habilidade solto. Etapa 1.5: loga e repassa ao ASC do PlayerState. */
         void AbilityInputTagReleased(FGameplayTag InputTag);
+
+        /** Etapa 2.5: slot segurado (a cada quadro, sem log): repassa ao ASC para combos. */
+        void AbilityInputTagHeld(FGameplayTag InputTag);
 
         /** Componente de câmera do pawn possuído (ou null). */
         UBWCameraComponent* GetBWCameraComponent() const;
@@ -150,4 +172,35 @@ private:
 
         /** True enquanto WASD/stick está pressionado: clique é ignorado (comportamento de ARPG com WASD). */
         bool bDirectMoveInputActive = false;
+
+        /** Etapa 2.5: distância (cm, no plano) em que o personagem para de andar e ataca o alvo clicado. */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Combat", meta = (ClampMin = "50.0"))
+        float MeleeEngageRange = 180.0f;
+
+        /** Etapa 2.5: inimigo clicado (só no controller local). */
+        TWeakObjectPtr<AActor> AttackTarget;
+
+        /** Etapa 2.5: botão do clique ainda apertado. */
+        bool bClickHeld = false;
+
+        /** Etapa 2.5: já atacou o alvo atual pelo menos uma vez. */
+        bool bAttackIssued = false;
+
+        /** Etapa 2.5: intervalo entre recálculos do caminho até o alvo. */
+        float AttackRepathTimer = 0.0f;
+
+        /**
+         * Etapa 2.5: material do marcador do alvo (Material Domain = Deferred Decal).
+         * Só o jogador que clicou vê o marcador (é criado apenas no controller local).
+         */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Combat")
+        TObjectPtr<UMaterialInterface> TargetMarkerMaterial;
+
+        /** Etapa 2.5: tamanho do marcador (X = profundidade da projeção; Y/Z = raio do círculo). */
+        UPROPERTY(EditDefaultsOnly, Category = "BW|Combat")
+        FVector TargetMarkerSize = FVector(64.0, 70.0, 70.0);
+
+        /** Etapa 2.5: decal do marcador em uso. */
+        UPROPERTY(Transient)
+        TObjectPtr<UDecalComponent> TargetMarker;
 };

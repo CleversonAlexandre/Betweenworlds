@@ -1,10 +1,12 @@
 // Between Worlds — Etapa 1.5 (GAS fundação: ASC no PlayerState + primeira habilidade)
 // Correção 1.5.1 (Claude): ativação pelo HANDLE do spec que tem a InputTag do slot.
 // Etapa 2.3: morto não ativa habilidades.
+// Etapa 2.5: slot segurado reativa habilidades de combo.
 
 #include "AbilitySystem/BWAbilitySystemComponent.h"
 
 #include "AbilitySystem/Tags/BWCombatTags.h"
+#include "AbilitySystem/Tags/BWGameplayTags.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBWAbilitySystem, Log, All);
 
@@ -53,6 +55,31 @@ void UBWAbilitySystemComponent::BWAbilityInputTagPressed(const FGameplayTag& Inp
 		UE_LOG(LogBWAbilitySystem, Log,
 			TEXT("Slot %s sem habilidade concedida (confira DefaultAbilities no BP_BWPlayerState)."),
 			*InputTag.ToString());
+	}
+}
+
+void UBWAbilitySystemComponent::BWAbilityInputTagHeld(const FGameplayTag& InputTag)
+{
+	if (!InputTag.IsValid() || HasMatchingGameplayTag(TAG_State_Dead))
+	{
+		return;
+	}
+
+	// Chamado a cada quadro: sem log. Só habilidades de repetição, e só quando terminaram
+	// (a próxima ativação é o próximo golpe do combo).
+	for (const FGameplayAbilitySpec& Spec : GetActivatableAbilities())
+	{
+		if (!Spec.Ability || Spec.IsActive() || !Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+		{
+			continue;
+		}
+
+		if (!Spec.Ability->GetAssetTags().HasTag(TAG_Ability_Input_RepeatWhileHeld))
+		{
+			continue;
+		}
+
+		TryActivateAbility(Spec.Handle);
 	}
 }
 

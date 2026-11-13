@@ -1,8 +1,15 @@
-// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags) / 1.5 (GAS)
+// Between Worlds — Etapa 1.2 (Fundação: rede) / 1.3 (câmera) / 1.4-a (clique-para-mover) / 1.4-b (InputTags) / 1.5 (GAS) / 2.5 (ataque principal + marcador de alvo)
 
 #include "Core/BWPlayerController.h"
 
 #include "AbilitySystem/BWAbilitySystemComponent.h"
+#include "AbilitySystem/Tags/BWGameplayTags.h"
+#include "Character/BWCharacterBase.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/DecalComponent.h"
+#include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInterface.h"
 #include "Camera/BWCameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Core/BWPlayerState.h"
@@ -115,6 +122,7 @@ void ABWPlayerController::SetupInputComponent()
 	if (ClickMoveAction)
 	{
 		EnhancedInput->BindAction(ClickMoveAction, ETriggerEvent::Started, this, &ThisClass::HandleClickMoveStarted);
+		EnhancedInput->BindAction(ClickMoveAction, ETriggerEvent::Completed, this, &ThisClass::HandleClickMoveCompleted);
 	}
 	else
 	{
@@ -284,6 +292,23 @@ void ABWPlayerController::HandleClickMoveStarted(const FInputActionValue& /*Valu
 		return;
 	}
 
+	bClickHeld = true;
+
+	// Etapa 2.5: inimigo sob o cursor = atacar (procura por objetos do tipo Pawn,
+	// que é o tipo da cápsula dos personagens).
+	const ABWCharacterBase* SelfCharacter = Cast<ABWCharacterBase>(GetPawn());
+	FHitResult PawnHit;
+	const TArray<TEnumAsByte<EObjectTypeQuery>> PawnTypes = { UEngineTypes::ConvertToObjectType(ECC_Pawn) };
+	if (SelfCharacter && GetHitResultUnderCursorForObjects(PawnTypes, false, PawnHit)
+		&& SelfCharacter->IsHostileTo(PawnHit.GetActor()))
+	{
+		SetAttackTarget(PawnHit.GetActor());
+		return;
+	}
+
+	// Clique no chão: abandona o alvo e anda.
+	ClearAttackTarget();
+
 	// B1: sem hit (céu/espaço vazio) não há destino; pedido ignorado.
 	FHitResult Hit;
 	if (!GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, Hit))
@@ -292,6 +317,130 @@ void ABWPlayerController::HandleClickMoveStarted(const FInputActionValue& /*Valu
 	}
 
 	RequestMoveTo(Hit.ImpactPoint);
+}
+
+void ABWPlayerController::HandleClickMoveCompleted(const FInputActionValue& /*Value*/)
+{
+	bClickHeld = false;
+}
+
+void ABWPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	// PlayerTick só roda em controllers locais com jogador; o alvo do clique é estado local.
+	UpdateAttackTarget(DeltaTime);
+}
+
+void ABWPlayerController::SetAttackTarget(AActor* NewTarget)
+{
+	if (AttackTarget.Get() != NewTarget)
+	{
+		ClearAttackTarget();
+	}
+
+	AttackTarget = NewTarget;
+	bAttackIssued = false;
+	AttackRepathTimer = 0.0f;
+
+	UE_LOG(LogBWPlayerController, Log, TEXT("%s: alvo de ataque %s"), *GetNameSafe(this), *GetNameSafe(NewTarget));
+
+	// Marcador: decal no chão, preso à cápsula do alvo (acompanha o movimento dele).
+	if (!IsValid(TargetMarker) && TargetMarkerMaterial && NewTarget)
+	{
+		const ACharacter* TargetCharacter = Cast<ACharacter>(NewTarget);
+		USceneComponent* AttachTo = TargetCharacter ? TargetCharacter->GetCapsuleComponent() : NewTarget->GetRootComponent();
+		const float HalfHeight = TargetCharacter ? TargetCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 0.0f;
+
+		// Decal projeta ao longo do X: pitch -90 aponta para baixo, até o chão.
+		TargetMarker = UGameplayStatics::SpawnDecalAttached(TargetMarkerMaterial, TargetMarkerSize, AttachTo, NAME_None,
+			FVector(0.0, 0.0, -HalfHeight), FRotator(-90.0, 0.0, 0.0), EAttachLocation::KeepRelativeOffset);
+	}
+	else if (!TargetMarkerMaterial)
+	{
+		UE_LOG(LogBWPlayerController, Warning, TEXT("%s: TargetMarkerMaterial não configurado no BP_BWPlayerController."), *GetNameSafe(this));
+	}
+}
+
+void ABWPlayerController::ClearAttackTarget()
+{
+	AttackTarget.Reset();
+	bAttackIssued = false;
+
+	// O decal pode já ter sido destruído junto com o alvo (corpo removido).
+	if (IsValid(TargetMarker))
+	{
+		TargetMarker->DestroyComponent();
+	}
+	TargetMarker = nullptr;
+}
+
+void ABWPlayerController::UpdateAttackTarget(float DeltaTime)
+{
+	AActor* Target = AttackTarget.Get();
+	if (!Target)
+	{
+		return;
+	}
+
+	ABWCharacterBase* SelfCharacter = Cast<ABWCharacterBase>(GetPawn());
+	if (!SelfCharacter || SelfCharacter->IsDead() || !SelfCharacter->IsHostileTo(Target))
+	{
+		// Morremos, o alvo morreu ou deixou de ser inimigo.
+		ClearAttackTarget();
+		return;
+	}
+
+	// Depois do primeiro golpe, soltar o botão encerra (o golpe em curso termina sozinho).
+	if (bAttackIssued && !bClickHeld)
+	{
+		ClearAttackTarget();
+		return;
+	}
+
+	const float Distance = FVector::Dist2D(SelfCharacter->GetActorLocation(), Target->GetActorLocation());
+	if (Distance > MeleeEngageRange)
+	{
+		// Fora de alcance: anda até o alvo, recalculando o caminho porque ele se move.
+		AttackRepathTimer -= DeltaTime;
+		if (AttackRepathTimer <= 0.0f)
+		{
+			RequestMoveTo(Target->GetActorLocation());
+			AttackRepathTimer = 0.25f;
+		}
+		return;
+	}
+
+	// No alcance: para, vira para o alvo e ataca (o ASC só reativa quando o golpe anterior terminou).
+	if (UBWPathFollowComponent* PathFollow = GetBWPathFollowComponent())
+	{
+		PathFollow->StopPathFollowing();
+	}
+
+	FVector ToTarget = Target->GetActorLocation() - SelfCharacter->GetActorLocation();
+	ToTarget.Z = 0.0;
+	if (!ToTarget.IsNearlyZero())
+	{
+		SelfCharacter->SetActorRotation(ToTarget.Rotation());
+	}
+
+	if (ABWPlayerState* BWPlayerState = GetPlayerState<ABWPlayerState>())
+	{
+		if (UBWAbilitySystemComponent* AbilitySystem = BWPlayerState->GetBWAbilitySystemComponent())
+		{
+			// Primeiro golpe: mesmo caminho das teclas (avisa no log se o slot não tem habilidade).
+			// Depois: "segurado", que só reativa habilidades de combo quando o golpe anterior acabou.
+			if (!bAttackIssued)
+			{
+				AbilitySystem->BWAbilityInputTagPressed(InputTag_Attack_Primary);
+			}
+			else
+			{
+				AbilitySystem->BWAbilityInputTagHeld(InputTag_Attack_Primary);
+			}
+		}
+	}
+	bAttackIssued = true;
 }
 
 void ABWPlayerController::RequestMoveTo(const FVector& Destination)
@@ -368,6 +517,10 @@ void ABWPlayerController::BindTaggedInputActions(UEnhancedInputComponent* Enhanc
 			this, &ThisClass::AbilityInputTagPressed, Entry.InputTag);
 		EnhancedInput->BindAction(Entry.InputAction, ETriggerEvent::Completed,
 			this, &ThisClass::AbilityInputTagReleased, Entry.InputTag);
+
+		// Etapa 2.5: segurado (a cada quadro) — só habilidades de repetição respondem.
+		EnhancedInput->BindAction(Entry.InputAction, ETriggerEvent::Triggered,
+			this, &ThisClass::AbilityInputTagHeld, Entry.InputTag);
 	}
 }
 
@@ -400,6 +553,17 @@ void ABWPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
 		if (UBWAbilitySystemComponent* AbilitySystem = BWPlayerState->GetBWAbilitySystemComponent())
 		{
 			AbilitySystem->BWAbilityInputTagReleased(InputTag);
+		}
+	}
+}
+
+void ABWPlayerController::AbilityInputTagHeld(FGameplayTag InputTag)
+{
+	if (ABWPlayerState* BWPlayerState = GetPlayerState<ABWPlayerState>())
+	{
+		if (UBWAbilitySystemComponent* AbilitySystem = BWPlayerState->GetBWAbilitySystemComponent())
+		{
+			AbilitySystem->BWAbilityInputTagHeld(InputTag);
 		}
 	}
 }

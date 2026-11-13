@@ -31,6 +31,13 @@ public:
 	void BWAbilityInputTagPressed(const FGameplayTag& InputTag);
 
 	/**
+	 * Etapa 2.5: slot SEGURADO (chamado a cada quadro enquanto o botão está apertado).
+	 * Só reativa habilidades marcadas com a Asset Tag Ability.Input.RepeatWhileHeld
+	 * que não estejam ativas — é assim que segurar encadeia o combo do Corte.
+	 */
+	void BWAbilityInputTagHeld(const FGameplayTag& InputTag);
+
+	/**
 	 * Slot de habilidade solto. Decisão C1 da 1.5: nenhuma habilidade de "segurar"
 	 * existe ainda — quando a primeira surgir, este método passa a repassar o
 	 * evento via AbilitySpecInputPressed/AbilitySpecInputReleased (padrão Lyra).
