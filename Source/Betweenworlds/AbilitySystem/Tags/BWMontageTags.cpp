@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 2.1 (Visual por Data Asset)
+// Between Worlds — Etapa 2.1 (Visual por Data Asset) / 2.6 (esquiva)
 
 #include "AbilitySystem/Tags/BWMontageTags.h"
 
@@ -8,6 +8,7 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Montage_Attack_Primary_3, "Montage.Attack.Pri
 
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Montage_Ability_CrushingBlow, "Montage.Ability.CrushingBlow", "Golpe Esmagador");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Montage_Ability_WarCry, "Montage.Ability.WarCry", "Grito de Guerra");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Montage_Ability_Dodge, "Montage.Ability.Dodge", "Esquiva universal");
 
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Montage_HitReact_Front, "Montage.HitReact.Front", "Reação a golpe pela frente");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(TAG_Montage_HitReact_Back, "Montage.HitReact.Back", "Reação a golpe por trás");

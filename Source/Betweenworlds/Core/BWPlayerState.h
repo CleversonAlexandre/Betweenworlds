@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects) / 2.2 (sets por classe) / 2.3 (respawn)
+// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects) / 2.2 (sets por classe) / 2.3 (respawn) / 2.7 (CombatSet)
 
 #pragma once
 
@@ -12,6 +12,7 @@
 class UBWAbilitySystemComponent;
 class UBWHealthSet;
 class UBWResourceSet;
+class UBWCombatSet;
 class UAttributeSet;
 class UGameplayAbility;
 class UGameplayEffect;
@@ -86,6 +87,10 @@ protected:
 	/** Mana e Stamina (Etapa 1.6). */
 	UPROPERTY()
 	TObjectPtr<UBWResourceSet> ResourceSet;
+
+	/** Atributos de combate (Etapa 2.7: multiplicador de dano). */
+	UPROPERTY()
+	TObjectPtr<UBWCombatSet> CombatSet;
 
 	/**
 	 * Sets de atributos próprios da classe (ex.: BWFurySet no Guerreiro), criados no servidor

@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 2.1 (Visual por Data Asset)
+// Between Worlds — Etapa 2.1 (Visual por Data Asset) / 2.6 (esquiva)
 
 #pragma once
 
@@ -20,6 +20,7 @@ BETWEENWORLDS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Montage_Attack_Primary_3);
 // Habilidades do kit da vertical slice
 BETWEENWORLDS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Montage_Ability_CrushingBlow); // Golpe Esmagador
 BETWEENWORLDS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Montage_Ability_WarCry);       // Grito de Guerra
+BETWEENWORLDS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Montage_Ability_Dodge);        // Esquiva universal (2.6)
 
 // Reações, morte e entrada no mapa
 BETWEENWORLDS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Montage_HitReact_Front);

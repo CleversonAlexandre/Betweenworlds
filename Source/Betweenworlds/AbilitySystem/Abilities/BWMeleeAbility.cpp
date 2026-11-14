@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 2.4 (golpe corpo a corpo genérico) / 2.5 (combo, mira suave, efeitos ao acertar)
+// Between Worlds — Etapa 2.4 (golpe corpo a corpo genérico) / 2.5 (combo, mira suave, efeitos ao acertar) / 2.6 (cone, cue de impacto)
 
 #include "AbilitySystem/Abilities/BWMeleeAbility.h"
 
@@ -184,15 +184,42 @@ void UBWMeleeAbility::ApplyHit()
 		return;
 	}
 
-	const FVector Center = Avatar->GetActorLocation() + Avatar->GetActorForwardVector() * HitForwardOffset;
+	const bool bCone = (HitShape == EBWMeleeHitShape::Cone);
+	const FVector Origin = Avatar->GetActorLocation();
+	const FVector Forward = Avatar->GetActorForwardVector().GetSafeNormal2D();
+
+	// Esfera: à frente do personagem. Cone: esfera do tamanho do alcance em volta dele,
+	// filtrada pelo ângulo logo abaixo.
+	const FVector Center = bCone ? Origin : Origin + Forward * HitForwardOffset;
+	const float QueryRadius = bCone ? ConeRange : HitRadius;
+	const float ConeMinDot = FMath::Cos(FMath::DegreesToRadians(ConeHalfAngle));
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(BWMeleeHit), /*bTraceComplex=*/false, Avatar);
 	TArray<FOverlapResult> Overlaps;
-	World->OverlapMultiByChannel(Overlaps, Center, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(HitRadius), Params);
+	World->OverlapMultiByChannel(Overlaps, Center, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeSphere(QueryRadius), Params);
 
 	if (bDebugDrawHit)
 	{
-		DrawDebugSphere(World, Center, HitRadius, 16, FColor::Red, false, 1.5f);
+		if (bCone)
+		{
+			const float HalfAngleRad = FMath::DegreesToRadians(ConeHalfAngle);
+			DrawDebugCone(World, Origin, Forward, ConeRange, HalfAngleRad, FMath::DegreesToRadians(10.0f), 16, FColor::Orange, false, 1.5f);
+		}
+		else
+		{
+			DrawDebugSphere(World, Center, HitRadius, 16, FColor::Red, false, 1.5f);
+		}
+	}
+
+	// Efeito de impacto: executado pelo servidor e replicado a todos (cosmético).
+	if (ImpactCueTag.IsValid())
+	{
+		FGameplayCueParameters CueParams;
+		CueParams.Location = bCone ? Origin + Forward * (ConeRange * 0.5f) : Center;
+		CueParams.Normal = Forward;
+		CueParams.Instigator = Avatar;
+		CueParams.EffectCauser = Avatar;
+		SourceASC->ExecuteGameplayCue(ImpactCueTag, CueParams);
 	}
 
 	bool bHitSomething = false;
@@ -202,6 +229,15 @@ void UBWMeleeAbility::ApplyHit()
 		if (!Target || HitActors.Contains(Target) || !Avatar->IsHostileTo(Target))
 		{
 			continue;
+		}
+
+		if (bCone)
+		{
+			const FVector ToTarget = (Target->GetActorLocation() - Origin).GetSafeNormal2D();
+			if (FVector::DotProduct(Forward, ToTarget) < ConeMinDot)
+			{
+				continue;
+			}
 		}
 
 		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);

@@ -1,9 +1,10 @@
-// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects) / 2.2 (sets por classe) / 2.3 (respawn)
+// Between Worlds — Etapa 1.5 (GAS fundação) / 1.6 (atributos e Gameplay Effects) / 2.2 (sets por classe) / 2.3 (respawn) / 2.7 (CombatSet)
 
 #include "Core/BWPlayerState.h"
 
 #include "AbilitySystem/Attributes/BWHealthSet.h"
 #include "AbilitySystem/Attributes/BWResourceSet.h"
+#include "AbilitySystem/Attributes/BWCombatSet.h"
 #include "AbilitySystem/BWAbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "AttributeSet.h"
@@ -25,6 +26,7 @@ ABWPlayerState::ABWPlayerState()
 	// registra sozinho na inicialização. Replicam junto com este PlayerState.
 	HealthSet = CreateDefaultSubobject<UBWHealthSet>(TEXT("HealthSet"));
 	ResourceSet = CreateDefaultSubobject<UBWResourceSet>(TEXT("ResourceSet"));
+	CombatSet = CreateDefaultSubobject<UBWCombatSet>(TEXT("CombatSet"));
 
 	// GAS_ARCHITECTURE §2: efeitos, tags e atributos só chegam aos clientes na
 	// frequência de rede DESTE ator. O padrão do PlayerState é baixo demais para gameplay.

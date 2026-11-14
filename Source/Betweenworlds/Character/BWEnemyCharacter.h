@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 2.4 (inimigo base)
+// Between Worlds — Etapa 2.4 (inimigo base) / 2.7 (CombatSet)
 
 #pragma once
 
@@ -8,6 +8,7 @@
 
 class UBWAbilitySystemComponent;
 class UBWHealthSet;
+class UBWCombatSet;
 class UGameplayAbility;
 class UGameplayEffect;
 
@@ -52,6 +53,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UBWHealthSet> HealthSet;
+
+	UPROPERTY()
+	TObjectPtr<UBWCombatSet> CombatSet;
 
 	/** Efeitos aplicados ao nascer (servidor). Ex.: GE_Enemy_Init (vida inicial). */
 	UPROPERTY(EditDefaultsOnly, Category = "BW|Abilities")

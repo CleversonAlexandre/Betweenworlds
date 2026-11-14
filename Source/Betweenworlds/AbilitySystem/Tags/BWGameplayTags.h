@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 1.4-b (InputTags: infra para as habilidades da 1.5) / 2.5 (ataque principal)
+// Between Worlds — Etapa 1.4-b (InputTags: infra para as habilidades da 1.5) / 2.5 (ataque principal) / 2.6 (esquiva)
 
 #pragma once
 
@@ -26,6 +26,9 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Ability_2);
 /** Etapa 2.5: ataque principal (mouse: clique em inimigo; controle: botão de ataque). */
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Attack_Primary);
 
+/** Etapa 2.6: Esquiva universal, fora dos 6 slots (teclado: Espaço / controle: Face Button Right). */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Dodge);
+
 /**
  * Etapa 2.5: habilidade com esta Asset Tag continua sendo reativada enquanto o botão
  * do slot estiver segurado (ex.: Corte em combo). Sem ela, segurar não repete (ex.: Esquiva).
@@ -34,3 +37,6 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Ability_Input_RepeatWhileHeld);
 
 // Etapa 1.6 — tag concedida pelo GE_Cooldown_Dash enquanto o dash está em recarga.
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Cooldown_Ability_Dash);
+
+// Etapa 2.7 — recarga do Grito de Guerra (concedida pelo GE_Cooldown_WarCry).
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Cooldown_Ability_WarCry);

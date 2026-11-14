@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 2.2 (Fúria e dano) / 2.3 (morte) / 2.4 (acerto corpo a corpo)
+// Between Worlds — Etapa 2.2 (Fúria e dano) / 2.3 (morte) / 2.4 (acerto corpo a corpo) / 2.6 (cues)
 
 #pragma once
 
@@ -20,6 +20,9 @@ BETWEENWORLDS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_Dead);
 
 /** Disparado pelo AnimNotify "BW Gameplay Event" no quadro de acerto de um golpe. */
 BETWEENWORLDS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Event_Montage_Hit);
+
+/** Gameplay Cue do impacto do Golpe Esmagador (efeito visual/sonoro, cosmético). */
+BETWEENWORLDS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_GameplayCue_Warrior_CrushingBlow);
 
 /** Presente enquanto o personagem está em combate (dado por GE_InCombat, com duração). */
 BETWEENWORLDS_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_State_InCombat);

@@ -1,4 +1,4 @@
-// Between Worlds — Etapa 2.4 (golpe corpo a corpo genérico) / 2.5 (combo, mira suave, efeitos ao acertar)
+// Between Worlds — Etapa 2.4 (golpe corpo a corpo genérico) / 2.5 (combo, mira suave, efeitos ao acertar) / 2.6 (cone, cue de impacto)
 
 #pragma once
 
@@ -7,6 +7,16 @@
 #include "BWMeleeAbility.generated.h"
 
 class UGameplayEffect;
+
+/** Forma da área de acerto. */
+UENUM(BlueprintType)
+enum class EBWMeleeHitShape : uint8
+{
+	/** Esfera à frente do personagem (golpes de alvo único/curtos). */
+	Sphere,
+	/** Cone a partir do personagem (golpes em área, ex.: Golpe Esmagador). */
+	Cone
+};
 
 /** Efeito aplicado em quem golpeia quando o golpe acerta alguém (ex.: ganho de Fúria). */
 USTRUCT(BlueprintType)
@@ -41,6 +51,12 @@ struct FBWMeleeSelfEffect
  *    habilidade (Asset Tag Ability.Input.RepeatWhileHeld), encadeando A → B → C → A…
  *  - Mira suave: ao ativar, vira para o inimigo vivo mais próximo à frente (mouse e controle).
  *  - SelfEffectsOnHit: aplicados em quem golpeia quando o golpe acerta (Fúria, em combate).
+ *
+ * Etapa 2.6:
+ *  - HitShape = Cone: acerta todos os inimigos dentro de ConeRange e ConeHalfAngle.
+ *  - ImpactCueTag: Gameplay Cue executado pelo servidor no ponto do impacto (todos veem).
+ *  - Custo (ex.: Fúria) e recarga vêm dos campos Cost/Cooldown Gameplay Effect do GAS:
+ *    sem recurso suficiente a habilidade não ativa.
  */
 UCLASS(Abstract)
 class BETWEENWORLDS_API UBWMeleeAbility : public UGameplayAbility
@@ -100,7 +116,23 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "BW|Melee", meta = (ClampMin = "0.0"))
 	float BaseDamage = 10.0f;
 
-	/** Raio da esfera de acerto (cm). */
+	/** Forma da área de acerto. */
+	UPROPERTY(EditDefaultsOnly, Category = "BW|Melee")
+	EBWMeleeHitShape HitShape = EBWMeleeHitShape::Sphere;
+
+	/** Cone: alcance a partir do personagem (cm). */
+	UPROPERTY(EditDefaultsOnly, Category = "BW|Melee", meta = (ClampMin = "1.0", EditCondition = "HitShape == EBWMeleeHitShape::Cone", EditConditionHides))
+	float ConeRange = 250.0f;
+
+	/** Cone: metade da abertura (graus). 45 = cone de 90°. */
+	UPROPERTY(EditDefaultsOnly, Category = "BW|Melee", meta = (ClampMin = "1.0", ClampMax = "180.0", EditCondition = "HitShape == EBWMeleeHitShape::Cone", EditConditionHides))
+	float ConeHalfAngle = 45.0f;
+
+	/** Gameplay Cue do impacto (ex.: GameplayCue.Warrior.CrushingBlow). Vazio = sem efeito visual. */
+	UPROPERTY(EditDefaultsOnly, Category = "BW|Melee", meta = (Categories = "GameplayCue"))
+	FGameplayTag ImpactCueTag;
+
+	/** Esfera: raio da esfera de acerto (cm). */
 	UPROPERTY(EditDefaultsOnly, Category = "BW|Melee", meta = (ClampMin = "1.0"))
 	float HitRadius = 120.0f;
 

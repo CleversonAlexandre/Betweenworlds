@@ -1,11 +1,13 @@
-// Between Worlds — Etapa 2.4 (inimigo base)
+// Between Worlds — Etapa 2.4 (inimigo base) / 2.7 (CombatSet)
 
 #include "Character/BWEnemyCharacter.h"
 
+#include "AbilitySystem/Attributes/BWCombatSet.h"
 #include "AbilitySystem/Attributes/BWHealthSet.h"
 #include "AbilitySystem/BWAbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "AIController.h"
+#include "BrainComponent.h"
 #include "Character/BWDeathComponent.h"
 #include "GameplayEffect.h"
 
@@ -22,6 +24,7 @@ ABWEnemyCharacter::ABWEnemyCharacter()
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 
 	HealthSet = CreateDefaultSubobject<UBWHealthSet>(TEXT("HealthSet"));
+	CombatSet = CreateDefaultSubobject<UBWCombatSet>(TEXT("CombatSet"));
 
 	// Nasce já controlado pela IA, colocado no mapa ou spawnado.
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
@@ -100,7 +103,15 @@ bool ABWEnemyCharacter::IsAttacking() const
 
 void ABWEnemyCharacter::HandleDeathStarted(AActor* /*DeadActor*/)
 {
-	// Para a IA (o StateTree deixa de rodar) e agenda a remoção do corpo.
+	// Para a IA enquanto ela ainda tem o pawn (evita o aviso "Context Requirements" do
+	// StateTree), depois solta o controller e agenda a remoção do corpo.
+	if (const AAIController* AIController = Cast<AAIController>(GetController()))
+	{
+		if (UBrainComponent* Brain = AIController->FindComponentByClass<UBrainComponent>())
+		{
+			Brain->StopLogic(TEXT("Morto"));
+		}
+	}
 	DetachFromControllerPendingDestroy();
 	SetLifeSpan(CorpseLifetime);
 
